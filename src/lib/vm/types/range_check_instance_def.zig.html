@@ -117,13 +117,25 @@
 <span class="line" id="L3"></span>
 <span class="line" id="L4"><span class="tok-comment">/// Represents a Range Check Instance Definition.</span></span>
 <span class="line" id="L5"><span class="tok-kw">pub</span> <span class="tok-kw">const</span> RangeCheckInstanceDef = <span class="tok-kw">struct</span> {</span>
-<span class="line" id="L6">    <span class="tok-comment">/// Ratio</span></span>
-<span class="line" id="L7">    ratio: ?<span class="tok-type">u32</span>,</span>
-<span class="line" id="L8">    <span class="tok-comment">/// Number of 16-bit range checks that will be used for each instance of the builtin.</span></span>
-<span class="line" id="L9">    <span class="tok-comment">///</span></span>
-<span class="line" id="L10">    <span class="tok-comment">/// For example, n_parts=8 defines the range [0, 2^128).</span></span>
-<span class="line" id="L11">    n_parts: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L12">};</span>
-<span class="line" id="L13"></span>
+<span class="line" id="L6">    <span class="tok-kw">const</span> Self = <span class="tok-builtin">@This</span>();</span>
+<span class="line" id="L7"></span>
+<span class="line" id="L8">    <span class="tok-comment">/// Ratio</span></span>
+<span class="line" id="L9">    ratio: ?<span class="tok-type">u32</span>,</span>
+<span class="line" id="L10">    <span class="tok-comment">/// Number of 16-bit range checks that will be used for each instance of the builtin.</span></span>
+<span class="line" id="L11">    <span class="tok-comment">///</span></span>
+<span class="line" id="L12">    <span class="tok-comment">/// For example, n_parts=8 defines the range [0, 2^128).</span></span>
+<span class="line" id="L13">    n_parts: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L14"></span>
+<span class="line" id="L15">    <span class="tok-comment">/// Number of cells per built in</span></span>
+<span class="line" id="L16">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">cells_per_builtin</span>() <span class="tok-type">u32</span> {</span>
+<span class="line" id="L17">        <span class="tok-kw">return</span> CELLS_PER_RANGE_CHECK;</span>
+<span class="line" id="L18">    }</span>
+<span class="line" id="L19"></span>
+<span class="line" id="L20">    <span class="tok-comment">/// Number of units per builtin</span></span>
+<span class="line" id="L21">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">range_check_units_per_builtin</span>(self: *Self) <span class="tok-type">u32</span> {</span>
+<span class="line" id="L22">        <span class="tok-kw">return</span> self.n_parts;</span>
+<span class="line" id="L23">    }</span>
+<span class="line" id="L24">};</span>
+<span class="line" id="L25"></span>
 </code></pre></body>
 </html>

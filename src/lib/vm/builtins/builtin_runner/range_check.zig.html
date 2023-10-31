@@ -157,30 +157,31 @@
 <span class="line" id="L43">        n_parts: <span class="tok-type">u32</span>,</span>
 <span class="line" id="L44">        included: <span class="tok-type">bool</span>,</span>
 <span class="line" id="L45">    ) Self {</span>
-<span class="line" id="L46">        <span class="tok-kw">return</span> .{</span>
-<span class="line" id="L47">            .ratio = ratio,</span>
-<span class="line" id="L48">            .base = <span class="tok-number">0</span>,</span>
-<span class="line" id="L49">            .stop_ptr = <span class="tok-null">null</span>,</span>
-<span class="line" id="L50">            .cell_per_instance = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
-<span class="line" id="L51">            .n_input_cells = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
-<span class="line" id="L52">            <span class="tok-comment">// TODO: implement shl logic: https://github.com/lambdaclass/cairo-vm/blob/e6171d66a64146acc16d5512766ae91ae044f297/vm/src/vm/runners/builtin_runner/range_check.rs#L48-L53</span>
-</span>
-<span class="line" id="L53">            ._bound = <span class="tok-null">null</span>,</span>
-<span class="line" id="L54">            .included = included,</span>
-<span class="line" id="L55">            .n_parts = n_parts,</span>
-<span class="line" id="L56">            .instances_per_component = <span class="tok-number">1</span>,</span>
-<span class="line" id="L57">        };</span>
-<span class="line" id="L58">    }</span>
-<span class="line" id="L59"></span>
-<span class="line" id="L60">    <span class="tok-comment">/// Get the base value of this range check runner.</span></span>
-<span class="line" id="L61">    <span class="tok-comment">///</span></span>
-<span class="line" id="L62">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L46">        <span class="tok-kw">var</span> bound = Felt252.one().shl(<span class="tok-number">16</span> * n_parts);</span>
+<span class="line" id="L47">        <span class="tok-kw">var</span> _bound: ?Felt252 = <span class="tok-kw">if</span> (n_parts != <span class="tok-number">0</span> <span class="tok-kw">and</span> bound.zero()) <span class="tok-null">null</span> <span class="tok-kw">else</span> Felt252.new(bound);</span>
+<span class="line" id="L48"></span>
+<span class="line" id="L49">        <span class="tok-kw">return</span> .{</span>
+<span class="line" id="L50">            .ratio = ratio,</span>
+<span class="line" id="L51">            .base = <span class="tok-number">0</span>,</span>
+<span class="line" id="L52">            .stop_ptr = <span class="tok-null">null</span>,</span>
+<span class="line" id="L53">            .cell_per_instance = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
+<span class="line" id="L54">            .n_input_cells = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
+<span class="line" id="L55">            ._bound = _bound,</span>
+<span class="line" id="L56">            .included = included,</span>
+<span class="line" id="L57">            .n_parts = n_parts,</span>
+<span class="line" id="L58">            .instances_per_component = <span class="tok-number">1</span>,</span>
+<span class="line" id="L59">        };</span>
+<span class="line" id="L60">    }</span>
+<span class="line" id="L61"></span>
+<span class="line" id="L62">    <span class="tok-comment">/// Get the base value of this range check runner.</span></span>
 <span class="line" id="L63">    <span class="tok-comment">///</span></span>
-<span class="line" id="L64">    <span class="tok-comment">/// The base value as a `usize`.</span></span>
-<span class="line" id="L65">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_base</span>(self: *<span class="tok-kw">const</span> Self) <span class="tok-type">usize</span> {</span>
-<span class="line" id="L66">        <span class="tok-kw">return</span> self.base;</span>
-<span class="line" id="L67">    }</span>
-<span class="line" id="L68">};</span>
-<span class="line" id="L69"></span>
+<span class="line" id="L64">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L65">    <span class="tok-comment">///</span></span>
+<span class="line" id="L66">    <span class="tok-comment">/// The base value as a `usize`.</span></span>
+<span class="line" id="L67">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_base</span>(self: *<span class="tok-kw">const</span> Self) <span class="tok-type">usize</span> {</span>
+<span class="line" id="L68">        <span class="tok-kw">return</span> self.base;</span>
+<span class="line" id="L69">    }</span>
+<span class="line" id="L70">};</span>
+<span class="line" id="L71"></span>
 </code></pre></body>
 </html>
