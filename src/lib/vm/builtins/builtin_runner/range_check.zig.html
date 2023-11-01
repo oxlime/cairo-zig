@@ -112,76 +112,216 @@
     </style>
 </head>
 <body>
-<pre><code><span class="line" id="L1"><span class="tok-kw">const</span> Felt252 = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../../math/fields/starknet.zig&quot;</span>).Felt252;</span>
-<span class="line" id="L2"><span class="tok-kw">const</span> range_check_instance_def = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../types/range_check_instance_def.zig&quot;</span>);</span>
-<span class="line" id="L3"></span>
-<span class="line" id="L4"><span class="tok-comment">/// Range check built-in runner</span></span>
-<span class="line" id="L5"><span class="tok-kw">pub</span> <span class="tok-kw">const</span> RangeCheckBuiltinRunner = <span class="tok-kw">struct</span> {</span>
-<span class="line" id="L6">    <span class="tok-kw">const</span> Self = <span class="tok-builtin">@This</span>();</span>
-<span class="line" id="L7"></span>
-<span class="line" id="L8">    <span class="tok-comment">/// Ratio</span></span>
-<span class="line" id="L9">    ratio: ?<span class="tok-type">u32</span>,</span>
-<span class="line" id="L10">    <span class="tok-comment">/// Base</span></span>
-<span class="line" id="L11">    base: <span class="tok-type">usize</span>,</span>
-<span class="line" id="L12">    <span class="tok-comment">/// Stop pointer</span></span>
-<span class="line" id="L13">    stop_ptr: ?<span class="tok-type">usize</span>,</span>
-<span class="line" id="L14">    <span class="tok-comment">/// Number of cells per instance</span></span>
-<span class="line" id="L15">    cells_per_instance: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L16">    <span class="tok-comment">/// Number of input cells</span></span>
-<span class="line" id="L17">    n_input_cells: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L18">    <span class="tok-comment">/// Felt252 field element bound</span></span>
-<span class="line" id="L19">    _bound: ?Felt252,</span>
-<span class="line" id="L20">    <span class="tok-comment">/// Included boolean flag</span></span>
-<span class="line" id="L21">    included: <span class="tok-type">bool</span>,</span>
-<span class="line" id="L22">    <span class="tok-comment">/// Number of parts</span></span>
-<span class="line" id="L23">    n_parts: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L24">    <span class="tok-comment">/// Number of instances per component</span></span>
-<span class="line" id="L25">    instances_per_component: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L26"></span>
-<span class="line" id="L27">    <span class="tok-comment">/// Create a new RangeCheckBuiltinRunner instance.</span></span>
-<span class="line" id="L28">    <span class="tok-comment">///</span></span>
-<span class="line" id="L29">    <span class="tok-comment">/// This function initializes a new `RangeCheckBuiltinRunner` instance with the provided</span></span>
-<span class="line" id="L30">    <span class="tok-comment">/// `ratio`, `n_parts`, and `included` values.</span></span>
-<span class="line" id="L31">    <span class="tok-comment">///</span></span>
-<span class="line" id="L32">    <span class="tok-comment">/// # Arguments</span></span>
-<span class="line" id="L33">    <span class="tok-comment">///</span></span>
-<span class="line" id="L34">    <span class="tok-comment">/// - `ratio`: An optional 32-bit unsigned integer representing the ratio.</span></span>
-<span class="line" id="L35">    <span class="tok-comment">/// - `n_parts`: The number of parts for range check operations.</span></span>
-<span class="line" id="L36">    <span class="tok-comment">/// - `included`: A boolean flag indicating whether this runner is included.</span></span>
-<span class="line" id="L37">    <span class="tok-comment">///</span></span>
-<span class="line" id="L38">    <span class="tok-comment">/// # Returns</span></span>
-<span class="line" id="L39">    <span class="tok-comment">///</span></span>
-<span class="line" id="L40">    <span class="tok-comment">/// A new `RangeCheckBuiltinRunner` instance.</span></span>
-<span class="line" id="L41">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">new</span>(</span>
-<span class="line" id="L42">        ratio: ?<span class="tok-type">u32</span>,</span>
-<span class="line" id="L43">        n_parts: <span class="tok-type">u32</span>,</span>
-<span class="line" id="L44">        included: <span class="tok-type">bool</span>,</span>
-<span class="line" id="L45">    ) Self {</span>
-<span class="line" id="L46">        <span class="tok-kw">var</span> bound = Felt252.one().shl(<span class="tok-number">16</span> * n_parts);</span>
-<span class="line" id="L47">        <span class="tok-kw">var</span> _bound: ?Felt252 = <span class="tok-kw">if</span> (n_parts != <span class="tok-number">0</span> <span class="tok-kw">and</span> bound.zero()) <span class="tok-null">null</span> <span class="tok-kw">else</span> Felt252.new(bound);</span>
-<span class="line" id="L48"></span>
-<span class="line" id="L49">        <span class="tok-kw">return</span> .{</span>
-<span class="line" id="L50">            .ratio = ratio,</span>
-<span class="line" id="L51">            .base = <span class="tok-number">0</span>,</span>
-<span class="line" id="L52">            .stop_ptr = <span class="tok-null">null</span>,</span>
-<span class="line" id="L53">            .cell_per_instance = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
-<span class="line" id="L54">            .n_input_cells = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
-<span class="line" id="L55">            ._bound = _bound,</span>
-<span class="line" id="L56">            .included = included,</span>
-<span class="line" id="L57">            .n_parts = n_parts,</span>
-<span class="line" id="L58">            .instances_per_component = <span class="tok-number">1</span>,</span>
-<span class="line" id="L59">        };</span>
-<span class="line" id="L60">    }</span>
-<span class="line" id="L61"></span>
-<span class="line" id="L62">    <span class="tok-comment">/// Get the base value of this range check runner.</span></span>
-<span class="line" id="L63">    <span class="tok-comment">///</span></span>
-<span class="line" id="L64">    <span class="tok-comment">/// # Returns</span></span>
-<span class="line" id="L65">    <span class="tok-comment">///</span></span>
-<span class="line" id="L66">    <span class="tok-comment">/// The base value as a `usize`.</span></span>
-<span class="line" id="L67">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_base</span>(self: *<span class="tok-kw">const</span> Self) <span class="tok-type">usize</span> {</span>
-<span class="line" id="L68">        <span class="tok-kw">return</span> self.base;</span>
-<span class="line" id="L69">    }</span>
-<span class="line" id="L70">};</span>
-<span class="line" id="L71"></span>
+<pre><code><span class="line" id="L1"><span class="tok-kw">const</span> std = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;std&quot;</span>);</span>
+<span class="line" id="L2"><span class="tok-kw">const</span> Allocator = std.mem.Allocator;</span>
+<span class="line" id="L3"><span class="tok-kw">const</span> ArrayList = std.ArrayList;</span>
+<span class="line" id="L4"></span>
+<span class="line" id="L5"><span class="tok-kw">const</span> Felt252 = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../../math/fields/starknet.zig&quot;</span>).Felt252;</span>
+<span class="line" id="L6"><span class="tok-kw">const</span> range_check_instance_def = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../types/range_check_instance_def.zig&quot;</span>);</span>
+<span class="line" id="L7"><span class="tok-kw">const</span> MemorySegmentManager = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../memory/segments.zig&quot;</span>).MemorySegmentManager;</span>
+<span class="line" id="L8"><span class="tok-kw">const</span> relocatable = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../memory/relocatable.zig&quot;</span>);</span>
+<span class="line" id="L9"><span class="tok-kw">const</span> Error = <span class="tok-builtin">@import</span>(<span class="tok-str">&quot;../../error.zig&quot;</span>);</span>
+<span class="line" id="L10"></span>
+<span class="line" id="L11"><span class="tok-kw">const</span> Relocatable = relocatable.Relocatable;</span>
+<span class="line" id="L12"><span class="tok-kw">const</span> MaybeRelocatable = relocatable.MaybeRelocatable;</span>
+<span class="line" id="L13"><span class="tok-kw">const</span> MemoryError = Error.MemoryError;</span>
+<span class="line" id="L14"><span class="tok-kw">const</span> RunnerError = Error.RunnerError;</span>
+<span class="line" id="L15"></span>
+<span class="line" id="L16"><span class="tok-comment">/// Range check built-in runner</span></span>
+<span class="line" id="L17"><span class="tok-kw">pub</span> <span class="tok-kw">const</span> RangeCheckBuiltinRunner = <span class="tok-kw">struct</span> {</span>
+<span class="line" id="L18">    <span class="tok-kw">const</span> Self = <span class="tok-builtin">@This</span>();</span>
+<span class="line" id="L19"></span>
+<span class="line" id="L20">    <span class="tok-comment">/// Ratio</span></span>
+<span class="line" id="L21">    ratio: ?<span class="tok-type">u32</span>,</span>
+<span class="line" id="L22">    <span class="tok-comment">/// Base</span></span>
+<span class="line" id="L23">    base: <span class="tok-type">usize</span>,</span>
+<span class="line" id="L24">    <span class="tok-comment">/// Stop pointer</span></span>
+<span class="line" id="L25">    stop_ptr: ?<span class="tok-type">usize</span>,</span>
+<span class="line" id="L26">    <span class="tok-comment">/// Number of cells per instance</span></span>
+<span class="line" id="L27">    cells_per_instance: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L28">    <span class="tok-comment">/// Number of input cells</span></span>
+<span class="line" id="L29">    n_input_cells: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L30">    <span class="tok-comment">/// Felt252 field element bound</span></span>
+<span class="line" id="L31">    _bound: ?Felt252,</span>
+<span class="line" id="L32">    <span class="tok-comment">/// Included boolean flag</span></span>
+<span class="line" id="L33">    included: <span class="tok-type">bool</span>,</span>
+<span class="line" id="L34">    <span class="tok-comment">/// Number of parts</span></span>
+<span class="line" id="L35">    n_parts: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L36">    <span class="tok-comment">/// Number of instances per component</span></span>
+<span class="line" id="L37">    instances_per_component: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L38"></span>
+<span class="line" id="L39">    <span class="tok-comment">/// Create a new RangeCheckBuiltinRunner instance.</span></span>
+<span class="line" id="L40">    <span class="tok-comment">///</span></span>
+<span class="line" id="L41">    <span class="tok-comment">/// This function initializes a new `RangeCheckBuiltinRunner` instance with the provided</span></span>
+<span class="line" id="L42">    <span class="tok-comment">/// `ratio`, `n_parts`, and `included` values.</span></span>
+<span class="line" id="L43">    <span class="tok-comment">///</span></span>
+<span class="line" id="L44">    <span class="tok-comment">/// # Arguments</span></span>
+<span class="line" id="L45">    <span class="tok-comment">///</span></span>
+<span class="line" id="L46">    <span class="tok-comment">/// - `ratio`: An optional 32-bit unsigned integer representing the ratio.</span></span>
+<span class="line" id="L47">    <span class="tok-comment">/// - `n_parts`: The number of parts for range check operations.</span></span>
+<span class="line" id="L48">    <span class="tok-comment">/// - `included`: A boolean flag indicating whether this runner is included.</span></span>
+<span class="line" id="L49">    <span class="tok-comment">///</span></span>
+<span class="line" id="L50">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L51">    <span class="tok-comment">///</span></span>
+<span class="line" id="L52">    <span class="tok-comment">/// A new `RangeCheckBuiltinRunner` instance.</span></span>
+<span class="line" id="L53">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">new</span>(</span>
+<span class="line" id="L54">        ratio: ?<span class="tok-type">u32</span>,</span>
+<span class="line" id="L55">        n_parts: <span class="tok-type">u32</span>,</span>
+<span class="line" id="L56">        included: <span class="tok-type">bool</span>,</span>
+<span class="line" id="L57">    ) Self {</span>
+<span class="line" id="L58">        <span class="tok-kw">var</span> bound = Felt252.one().shl(<span class="tok-number">16</span> * n_parts);</span>
+<span class="line" id="L59">        <span class="tok-kw">var</span> _bound: ?Felt252 = <span class="tok-kw">if</span> (n_parts != <span class="tok-number">0</span> <span class="tok-kw">and</span> bound.zero()) <span class="tok-null">null</span> <span class="tok-kw">else</span> Felt252.new(bound);</span>
+<span class="line" id="L60"></span>
+<span class="line" id="L61">        <span class="tok-kw">return</span> .{</span>
+<span class="line" id="L62">            .ratio = ratio,</span>
+<span class="line" id="L63">            .base = <span class="tok-number">0</span>,</span>
+<span class="line" id="L64">            .stop_ptr = <span class="tok-null">null</span>,</span>
+<span class="line" id="L65">            .cell_per_instance = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
+<span class="line" id="L66">            .n_input_cells = range_check_instance_def.CELLS_PER_RANGE_CHECK,</span>
+<span class="line" id="L67">            ._bound = _bound,</span>
+<span class="line" id="L68">            .included = included,</span>
+<span class="line" id="L69">            .n_parts = n_parts,</span>
+<span class="line" id="L70">            .instances_per_component = <span class="tok-number">1</span>,</span>
+<span class="line" id="L71">        };</span>
+<span class="line" id="L72">    }</span>
+<span class="line" id="L73"></span>
+<span class="line" id="L74">    <span class="tok-comment">/// Get the base value of this Range Check runner.</span></span>
+<span class="line" id="L75">    <span class="tok-comment">///</span></span>
+<span class="line" id="L76">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L77">    <span class="tok-comment">///</span></span>
+<span class="line" id="L78">    <span class="tok-comment">/// The base value as a `usize`.</span></span>
+<span class="line" id="L79">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_base</span>(self: *<span class="tok-kw">const</span> Self) <span class="tok-type">usize</span> {</span>
+<span class="line" id="L80">        <span class="tok-kw">return</span> self.base;</span>
+<span class="line" id="L81">    }</span>
+<span class="line" id="L82"></span>
+<span class="line" id="L83">    <span class="tok-comment">/// Get the ratio value of this Range Check runner.</span></span>
+<span class="line" id="L84">    <span class="tok-comment">///</span></span>
+<span class="line" id="L85">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L86">    <span class="tok-comment">///</span></span>
+<span class="line" id="L87">    <span class="tok-comment">/// The ratio value as an `u32`.</span></span>
+<span class="line" id="L88">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_ratio</span>(self: *<span class="tok-kw">const</span> Self) ?<span class="tok-type">u32</span> {</span>
+<span class="line" id="L89">        <span class="tok-kw">return</span> self.ratio;</span>
+<span class="line" id="L90">    }</span>
+<span class="line" id="L91"></span>
+<span class="line" id="L92">    <span class="tok-comment">/// Initializes memory segments and sets the base value for the Range Check runner.</span></span>
+<span class="line" id="L93">    <span class="tok-comment">///</span></span>
+<span class="line" id="L94">    <span class="tok-comment">/// This function adds a memory segment using the provided `segments` manager and</span></span>
+<span class="line" id="L95">    <span class="tok-comment">/// sets the `base` value to the index of the new segment.</span></span>
+<span class="line" id="L96">    <span class="tok-comment">///</span></span>
+<span class="line" id="L97">    <span class="tok-comment">/// # Parameters</span></span>
+<span class="line" id="L98">    <span class="tok-comment">/// - `segments`: A pointer to the `MemorySegmentManager` for segment management.</span></span>
+<span class="line" id="L99">    <span class="tok-comment">///</span></span>
+<span class="line" id="L100">    <span class="tok-comment">/// # Modifies</span></span>
+<span class="line" id="L101">    <span class="tok-comment">/// - `self`: Updates the `base` value to the new segment's index.</span></span>
+<span class="line" id="L102">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">initialize_segments</span>(self: *Self, segments: *MemorySegmentManager) <span class="tok-type">void</span> {</span>
+<span class="line" id="L103">        self.base = <span class="tok-builtin">@as</span>(<span class="tok-type">usize</span>, <span class="tok-builtin">@intCast</span>(segments.add().segment_index));</span>
+<span class="line" id="L104">    }</span>
+<span class="line" id="L105"></span>
+<span class="line" id="L106">    <span class="tok-comment">/// Initializes and returns an `ArrayList` of `MaybeRelocatable` values.</span></span>
+<span class="line" id="L107">    <span class="tok-comment">///</span></span>
+<span class="line" id="L108">    <span class="tok-comment">/// If the range check runner is included, it appends a `Relocatable` element to the `ArrayList`</span></span>
+<span class="line" id="L109">    <span class="tok-comment">/// with the base value. Otherwise, it returns an empty `ArrayList`.</span></span>
+<span class="line" id="L110">    <span class="tok-comment">///</span></span>
+<span class="line" id="L111">    <span class="tok-comment">/// # Parameters</span></span>
+<span class="line" id="L112">    <span class="tok-comment">/// - `allocator`: An allocator for initializing the `ArrayList`.</span></span>
+<span class="line" id="L113">    <span class="tok-comment">///</span></span>
+<span class="line" id="L114">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L115">    <span class="tok-comment">/// An `ArrayList` of `MaybeRelocatable` values.</span></span>
+<span class="line" id="L116">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">initial_stack</span>(self: *Self, allocator: Allocator) !ArrayList(MaybeRelocatable) {</span>
+<span class="line" id="L117">        <span class="tok-kw">var</span> result = ArrayList(MaybeRelocatable).init(allocator);</span>
+<span class="line" id="L118">        <span class="tok-kw">if</span> (self.included) {</span>
+<span class="line" id="L119">            <span class="tok-kw">try</span> result.append(.{</span>
+<span class="line" id="L120">                .relocatable = Relocatable.new(</span>
+<span class="line" id="L121">                    <span class="tok-builtin">@intCast</span>(self.base),</span>
+<span class="line" id="L122">                    <span class="tok-number">0</span>,</span>
+<span class="line" id="L123">                ),</span>
+<span class="line" id="L124">            });</span>
+<span class="line" id="L125">            <span class="tok-kw">return</span> result;</span>
+<span class="line" id="L126">        }</span>
+<span class="line" id="L127">        <span class="tok-kw">return</span> result;</span>
+<span class="line" id="L128">    }</span>
+<span class="line" id="L129"></span>
+<span class="line" id="L130">    <span class="tok-comment">/// Get the number of used cells associated with this Range Check runner.</span></span>
+<span class="line" id="L131">    <span class="tok-comment">///</span></span>
+<span class="line" id="L132">    <span class="tok-comment">/// # Parameters</span></span>
+<span class="line" id="L133">    <span class="tok-comment">///</span></span>
+<span class="line" id="L134">    <span class="tok-comment">/// - `segments`: A pointer to a `MemorySegmentManager` for segment size information.</span></span>
+<span class="line" id="L135">    <span class="tok-comment">///</span></span>
+<span class="line" id="L136">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L137">    <span class="tok-comment">///</span></span>
+<span class="line" id="L138">    <span class="tok-comment">/// The number of used cells as a `u32`, or `MemoryError.MissingSegmentUsedSizes` if</span></span>
+<span class="line" id="L139">    <span class="tok-comment">/// the size is not available.</span></span>
+<span class="line" id="L140">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_used_cells</span>(self: *<span class="tok-kw">const</span> Self, segments: *MemorySegmentManager) !<span class="tok-type">u32</span> {</span>
+<span class="line" id="L141">        <span class="tok-kw">return</span> segments.get_segment_used_size(</span>
+<span class="line" id="L142">            <span class="tok-builtin">@intCast</span>(self.base),</span>
+<span class="line" id="L143">        ) <span class="tok-kw">orelse</span> MemoryError.MissingSegmentUsedSizes;</span>
+<span class="line" id="L144">    }</span>
+<span class="line" id="L145"></span>
+<span class="line" id="L146">    <span class="tok-comment">/// Retrieves memory segment addresses as a tuple.</span></span>
+<span class="line" id="L147">    <span class="tok-comment">///</span></span>
+<span class="line" id="L148">    <span class="tok-comment">/// Returns a tuple containing the `base` and `stop_ptr` addresses associated</span></span>
+<span class="line" id="L149">    <span class="tok-comment">/// with the Keccak runner's memory segments. The `stop_ptr` may be `null`.</span></span>
+<span class="line" id="L150">    <span class="tok-comment">///</span></span>
+<span class="line" id="L151">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L152">    <span class="tok-comment">/// A tuple of `usize` and `?usize` addresses.</span></span>
+<span class="line" id="L153">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">get_memory_segment_addresses</span>(self: *Self) std.meta.Tuple(&amp;.{</span>
+<span class="line" id="L154">        <span class="tok-type">usize</span>,</span>
+<span class="line" id="L155">        ?<span class="tok-type">usize</span>,</span>
+<span class="line" id="L156">    }) {</span>
+<span class="line" id="L157">        <span class="tok-kw">return</span> .{</span>
+<span class="line" id="L158">            self.base,</span>
+<span class="line" id="L159">            self.stop_ptr,</span>
+<span class="line" id="L160">        };</span>
+<span class="line" id="L161">    }</span>
+<span class="line" id="L162"></span>
+<span class="line" id="L163">    <span class="tok-comment">/// Calculate the final stack.</span></span>
+<span class="line" id="L164">    <span class="tok-comment">///</span></span>
+<span class="line" id="L165">    <span class="tok-comment">/// This function calculates the final stack pointer for the Range Check runner, based on the provided `segments`, `pointer`, and `self` settings. If the runner is included,</span></span>
+<span class="line" id="L166">    <span class="tok-comment">/// it verifies the stop pointer for consistency and sets it. Otherwise, it sets the stop pointer to zero.</span></span>
+<span class="line" id="L167">    <span class="tok-comment">///</span></span>
+<span class="line" id="L168">    <span class="tok-comment">/// # Parameters</span></span>
+<span class="line" id="L169">    <span class="tok-comment">///</span></span>
+<span class="line" id="L170">    <span class="tok-comment">/// - `segments`: A pointer to the `MemorySegmentManager` for segment management.</span></span>
+<span class="line" id="L171">    <span class="tok-comment">/// - `pointer`: A `Relocatable` pointer to the current stack pointer.</span></span>
+<span class="line" id="L172">    <span class="tok-comment">///</span></span>
+<span class="line" id="L173">    <span class="tok-comment">/// # Returns</span></span>
+<span class="line" id="L174">    <span class="tok-comment">///</span></span>
+<span class="line" id="L175">    <span class="tok-comment">/// A `Relocatable` pointer to the final stack pointer, or an error code if the</span></span>
+<span class="line" id="L176">    <span class="tok-comment">/// verification fails.</span></span>
+<span class="line" id="L177">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">final_stack</span>(</span>
+<span class="line" id="L178">        self: *Self,</span>
+<span class="line" id="L179">        segments: *MemorySegmentManager,</span>
+<span class="line" id="L180">        pointer: Relocatable,</span>
+<span class="line" id="L181">    ) !Relocatable {</span>
+<span class="line" id="L182">        <span class="tok-kw">if</span> (self.included) {</span>
+<span class="line" id="L183">            <span class="tok-kw">const</span> stop_pointer_addr = pointer.subUint(</span>
+<span class="line" id="L184">                <span class="tok-builtin">@intCast</span>(<span class="tok-number">1</span>),</span>
+<span class="line" id="L185">            ) <span class="tok-kw">catch</span> <span class="tok-kw">return</span> RunnerError.NoStopPointer;</span>
+<span class="line" id="L186">            <span class="tok-kw">const</span> stop_pointer = <span class="tok-kw">try</span> (segments.memory.get(</span>
+<span class="line" id="L187">                stop_pointer_addr,</span>
+<span class="line" id="L188">            ) <span class="tok-kw">catch</span> <span class="tok-kw">return</span> RunnerError.NoStopPointer).tryIntoRelocatable();</span>
+<span class="line" id="L189">            <span class="tok-kw">if</span> (<span class="tok-builtin">@as</span>(</span>
+<span class="line" id="L190">                <span class="tok-type">isize</span>,</span>
+<span class="line" id="L191">                <span class="tok-builtin">@intCast</span>(self.base),</span>
+<span class="line" id="L192">            ) != stop_pointer.segment_index) {</span>
+<span class="line" id="L193">                <span class="tok-kw">return</span> RunnerError.InvalidStopPointerIndex;</span>
+<span class="line" id="L194">            }</span>
+<span class="line" id="L195">            <span class="tok-kw">const</span> stop_ptr = stop_pointer.offset;</span>
+<span class="line" id="L196"></span>
+<span class="line" id="L197">            <span class="tok-kw">if</span> (stop_ptr != <span class="tok-kw">try</span> self.get_used_instances(segments) * <span class="tok-builtin">@as</span>(</span>
+<span class="line" id="L198">                <span class="tok-type">usize</span>,</span>
+<span class="line" id="L199">                <span class="tok-builtin">@intCast</span>(self.cells_per_instance),</span>
+<span class="line" id="L200">            )) {</span>
+<span class="line" id="L201">                <span class="tok-kw">return</span> RunnerError.InvalidStopPointer;</span>
+<span class="line" id="L202">            }</span>
+<span class="line" id="L203">            self.stop_ptr = stop_ptr;</span>
+<span class="line" id="L204">            <span class="tok-kw">return</span> stop_pointer_addr;</span>
+<span class="line" id="L205">        }</span>
+<span class="line" id="L206"></span>
+<span class="line" id="L207">        self.stop_ptr = <span class="tok-number">0</span>;</span>
+<span class="line" id="L208">        <span class="tok-kw">return</span> pointer;</span>
+<span class="line" id="L209">    }</span>
+<span class="line" id="L210">};</span>
+<span class="line" id="L211"></span>
 </code></pre></body>
 </html>
