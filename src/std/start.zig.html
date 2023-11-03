@@ -835,20 +835,54 @@
 <span class="line" id="L603">}</span>
 <span class="line" id="L604"></span>
 <span class="line" id="L605"><span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">call_wWinMain</span>() std.os.windows.INT {</span>
-<span class="line" id="L606">    <span class="tok-kw">const</span> MAIN_HINSTANCE = <span class="tok-builtin">@typeInfo</span>(<span class="tok-builtin">@TypeOf</span>(root.wWinMain)).Fn.params[<span class="tok-number">0</span>].<span class="tok-type">type</span>.?;</span>
-<span class="line" id="L607">    <span class="tok-kw">const</span> hInstance = <span class="tok-builtin">@as</span>(MAIN_HINSTANCE, <span class="tok-builtin">@ptrCast</span>(std.os.windows.kernel32.GetModuleHandleW(<span class="tok-null">null</span>).?));</span>
-<span class="line" id="L608">    <span class="tok-kw">const</span> lpCmdLine = std.os.windows.kernel32.GetCommandLineW();</span>
-<span class="line" id="L609"></span>
-<span class="line" id="L610">    <span class="tok-comment">// There's no (documented) way to get the nCmdShow parameter, so we're</span>
+<span class="line" id="L606">    <span class="tok-kw">const</span> peb = std.os.windows.peb();</span>
+<span class="line" id="L607">    <span class="tok-kw">const</span> MAIN_HINSTANCE = <span class="tok-builtin">@typeInfo</span>(<span class="tok-builtin">@TypeOf</span>(root.wWinMain)).Fn.params[<span class="tok-number">0</span>].<span class="tok-type">type</span>.?;</span>
+<span class="line" id="L608">    <span class="tok-kw">const</span> hInstance = <span class="tok-builtin">@as</span>(MAIN_HINSTANCE, <span class="tok-builtin">@ptrCast</span>(std.os.windows.kernel32.GetModuleHandleW(<span class="tok-null">null</span>).?));</span>
+<span class="line" id="L609">    <span class="tok-kw">const</span> lpCmdLine = std.os.windows.kernel32.GetCommandLineW();</span>
+<span class="line" id="L610"></span>
+<span class="line" id="L611">    <span class="tok-comment">// There are various types used for the 'show window' variable through the Win32 APIs:</span>
 </span>
-<span class="line" id="L611">    <span class="tok-comment">// using this fairly standard default.</span>
+<span class="line" id="L612">    <span class="tok-comment">// - u16 in STARTUPINFOA.wShowWindow / STARTUPINFOW.wShowWindow</span>
 </span>
-<span class="line" id="L612">    <span class="tok-kw">const</span> nCmdShow = <span class="tok-number">5</span>;</span>
-<span class="line" id="L613"></span>
-<span class="line" id="L614">    <span class="tok-comment">// second parameter hPrevInstance, MSDN: &quot;This parameter is always NULL&quot;</span>
+<span class="line" id="L613">    <span class="tok-comment">// - c_int in ShowWindow</span>
 </span>
-<span class="line" id="L615">    <span class="tok-kw">return</span> root.wWinMain(hInstance, <span class="tok-null">null</span>, lpCmdLine, nCmdShow);</span>
-<span class="line" id="L616">}</span>
-<span class="line" id="L617"></span>
+<span class="line" id="L614">    <span class="tok-comment">// - u32 in PEB.ProcessParameters.dwShowWindow</span>
+</span>
+<span class="line" id="L615">    <span class="tok-comment">// Since STARTUPINFO is the bottleneck for the allowed values, we use `u16` as the</span>
+</span>
+<span class="line" id="L616">    <span class="tok-comment">// type which can coerce into i32/c_int/u32 depending on how the user defines their wWinMain</span>
+</span>
+<span class="line" id="L617">    <span class="tok-comment">// (the Win32 docs show wWinMain with `int` as the type for nCmdShow).</span>
+</span>
+<span class="line" id="L618">    <span class="tok-kw">const</span> nCmdShow: <span class="tok-type">u16</span> = nCmdShow: {</span>
+<span class="line" id="L619">        <span class="tok-comment">// This makes Zig match the nCmdShow behavior of a C program with a WinMain symbol:</span>
+</span>
+<span class="line" id="L620">        <span class="tok-comment">// - With STARTF_USESHOWWINDOW set in STARTUPINFO.dwFlags of the CreateProcess call:</span>
+</span>
+<span class="line" id="L621">        <span class="tok-comment">//   - Compiled with subsystem:console -&gt; nCmdShow is always SW_SHOWDEFAULT</span>
+</span>
+<span class="line" id="L622">        <span class="tok-comment">//   - Compiled with subsystem:windows -&gt; nCmdShow is STARTUPINFO.wShowWindow from</span>
+</span>
+<span class="line" id="L623">        <span class="tok-comment">//     the parent CreateProcess call</span>
+</span>
+<span class="line" id="L624">        <span class="tok-comment">// - With STARTF_USESHOWWINDOW unset:</span>
+</span>
+<span class="line" id="L625">        <span class="tok-comment">//   - nCmdShow is always SW_SHOWDEFAULT</span>
+</span>
+<span class="line" id="L626">        <span class="tok-kw">const</span> SW_SHOWDEFAULT = <span class="tok-number">10</span>;</span>
+<span class="line" id="L627">        <span class="tok-kw">const</span> STARTF_USESHOWWINDOW = <span class="tok-number">1</span>;</span>
+<span class="line" id="L628">        <span class="tok-comment">// root having a wWinMain means that std.builtin.subsystem will always have a non-null value.</span>
+</span>
+<span class="line" id="L629">        <span class="tok-kw">if</span> (std.builtin.subsystem.? == .Windows <span class="tok-kw">and</span> peb.ProcessParameters.dwFlags &amp; STARTF_USESHOWWINDOW != <span class="tok-number">0</span>) {</span>
+<span class="line" id="L630">            <span class="tok-kw">break</span> :nCmdShow <span class="tok-builtin">@truncate</span>(peb.ProcessParameters.dwShowWindow);</span>
+<span class="line" id="L631">        }</span>
+<span class="line" id="L632">        <span class="tok-kw">break</span> :nCmdShow SW_SHOWDEFAULT;</span>
+<span class="line" id="L633">    };</span>
+<span class="line" id="L634"></span>
+<span class="line" id="L635">    <span class="tok-comment">// second parameter hPrevInstance, MSDN: &quot;This parameter is always NULL&quot;</span>
+</span>
+<span class="line" id="L636">    <span class="tok-kw">return</span> root.wWinMain(hInstance, <span class="tok-null">null</span>, lpCmdLine, nCmdShow);</span>
+<span class="line" id="L637">}</span>
+<span class="line" id="L638"></span>
 </code></pre></body>
 </html>
