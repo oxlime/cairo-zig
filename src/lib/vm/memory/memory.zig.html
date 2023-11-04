@@ -129,7 +129,7 @@
 <span class="line" id="L13"></span>
 <span class="line" id="L14"><span class="tok-comment">// Function that validates a memory address and returns a list of validated adresses</span>
 </span>
-<span class="line" id="L15"><span class="tok-kw">pub</span> <span class="tok-kw">const</span> validation_rule = <span class="tok-kw">fn</span> (*Memory, Relocatable) (std.ArrayList(!Relocatable));</span>
+<span class="line" id="L15"><span class="tok-kw">pub</span> <span class="tok-kw">const</span> validation_rule = *<span class="tok-kw">const</span> <span class="tok-kw">fn</span> (*Memory, Relocatable) std.ArrayList(Relocatable);</span>
 <span class="line" id="L16"></span>
 <span class="line" id="L17"><span class="tok-comment">// Representation of the VM memory.</span>
 </span>
