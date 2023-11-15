@@ -160,7 +160,9 @@ pub const Memory = struct {
                 return CairoVMError.MemoryOutOfBounds;
             };
         }
-        // TODO: Add all relevant checks.
+
+        // TODO: needs testing
+        self.validateMemoryCell(address);
     }
     // Get some value from the memory at the given address.
     // # Arguments
@@ -249,6 +251,14 @@ pub const Memory = struct {
         } else {
             var cell = self.data.getPtr(address).?;
             cell.markAccessed();
+        }
+    }
+
+    pub fn validateMemoryCell(self: *Self, address: Relocatable) !void {
+        switch (self.validation_rules.get(address.segment_index)) {
+            .validation_rule => |rule| if (!self.validated_addresses.contains(address)) {
+                self.validated_addresses.put(rule(self, address));
+            },
         }
     }
 };
